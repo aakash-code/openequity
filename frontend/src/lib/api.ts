@@ -648,6 +648,71 @@ class APIClient {
   async getPortfolioBenchmarkComparison(portfolioId: string, benchmarkSymbol: string = 'SPY'): Promise<any> {
     return this.request<any>(`/api/v1/portfolios/portfolios/${portfolioId}/benchmark-comparison?benchmark_symbol=${benchmarkSymbol}`);
   }
+
+  // Watchlist methods
+  async createWatchlist(data: { name: string; description?: string; is_public?: boolean; tags?: string[] }): Promise<any> {
+    return this.request<any>('/api/v1/watchlists/watchlists', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getWatchlists(skip: number = 0, limit: number = 20): Promise<any> {
+    return this.request<any>(`/api/v1/watchlists/watchlists?skip=${skip}&limit=${limit}`);
+  }
+
+  async getWatchlist(watchlistId: string): Promise<any> {
+    return this.request<any>(`/api/v1/watchlists/watchlists/${watchlistId}`);
+  }
+
+  async updateWatchlist(watchlistId: string, data: { name?: string; description?: string; tags?: string[]; is_public?: boolean }): Promise<any> {
+    return this.request<any>(`/api/v1/watchlists/watchlists/${watchlistId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteWatchlist(watchlistId: string): Promise<void> {
+    return this.request<void>(`/api/v1/watchlists/watchlists/${watchlistId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async addWatchlistItem(watchlistId: string, data: { ticker: string; notes?: string; target_price?: number }): Promise<any> {
+    return this.request<any>(`/api/v1/watchlists/watchlists/${watchlistId}/items`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async removeWatchlistItem(watchlistId: string, itemId: string): Promise<void> {
+    return this.request<void>(`/api/v1/watchlists/watchlists/${watchlistId}/items/${itemId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Stock screening methods
+  async getScreeningTemplates(): Promise<any> {
+    return this.request<any>('/api/v1/screening/screening/templates');
+  }
+
+  async getScreeningTemplate(templateId: string): Promise<any> {
+    return this.request<any>(`/api/v1/screening/screening/templates/${templateId}`);
+  }
+
+  async screenStocks(criteria: any): Promise<any> {
+    return this.request<any>('/api/v1/screening/screening/screen', {
+      method: 'POST',
+      body: JSON.stringify(criteria),
+    });
+  }
+
+  async screenByTemplate(templateId: string, additionalCriteria?: any): Promise<any> {
+    return this.request<any>(`/api/v1/screening/screening/screen-by-template/${templateId}`, {
+      method: 'POST',
+      body: additionalCriteria ? JSON.stringify(additionalCriteria) : undefined,
+    });
+  }
 }
 
 export const api = new APIClient();
