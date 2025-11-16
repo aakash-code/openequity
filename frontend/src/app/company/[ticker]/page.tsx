@@ -17,8 +17,9 @@ export default function CompanyDetailPage({ params }: PageProps) {
   const [statements, setStatements] = useState<FinancialStatement[]>([]);
   const [ratios, setRatios] = useState<FinancialRatios | null>(null);
   const [trendData, setTrendData] = useState<any>(null);
+  const [evaData, setEvaData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'financials' | 'ratios' | 'trends'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'financials' | 'ratios' | 'trends' | 'eva'>('overview');
   const [statementType, setStatementType] = useState<'income' | 'balance' | 'cashflow'>('income');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -56,6 +57,14 @@ export default function CompanyDetailPage({ params }: PageProps) {
           setTrendData(trendsData.analysis);
         } catch (err) {
           console.log('Trends not available yet');
+        }
+
+        // Fetch EVA data (assume 10% WACC as default)
+        try {
+          const evaAnalysis = await api.getEVAAnalysis(params.ticker, 0.10, 10);
+          setEvaData(evaAnalysis.eva_analysis);
+        } catch (err) {
+          console.log('EVA analysis not available yet');
         }
       } catch (error: any) {
         console.error('Error fetching company data:', error);
@@ -164,7 +173,7 @@ export default function CompanyDetailPage({ params }: PageProps) {
         <div className="bg-white rounded-lg shadow-md mb-6">
           <div className="border-b border-gray-200">
             <nav className="flex space-x-8 px-6" aria-label="Tabs">
-              {(['overview', 'financials', 'ratios', 'trends'] as const).map((tab) => (
+              {(['overview', 'financials', 'ratios', 'trends', 'eva'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -652,6 +661,187 @@ export default function CompanyDetailPage({ params }: PageProps) {
                 ) : (
                   <div className="text-center py-12">
                     <p className="text-gray-600 mb-4">No trend data available yet.</p>
+                    <button
+                      onClick={handleRefreshData}
+                      className="bg-primary-600 text-white px-6 py-2 rounded-md hover:bg-primary-700"
+                    >
+                      Fetch Financial Data
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* EVA Tab */}
+            {activeTab === 'eva' && (
+              <div className="space-y-8">
+                <h3 className="text-xl font-semibold text-gray-900">Economic Value Added (EVA) Analysis</h3>
+
+                {evaData && evaData.periods ? (
+                  <>
+                    {/* EVA Summary Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg">
+                        <p className="text-sm text-blue-700 font-medium mb-1">Latest EVA</p>
+                        <p className={`text-2xl font-bold ${evaData.latest_eva >= 0 ? 'text-blue-900' : 'text-red-900'}`}>
+                          {formatCurrency(evaData.latest_eva, currency)}
+                        </p>
+                        <p className="text-xs text-blue-600 mt-1">
+                          {evaData.eva_trend === 'improving' ? '↑ Improving' : '↓ Declining'}
+                        </p>
+                      </div>
+
+                      {evaData.average_eva !== null && (
+                        <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-lg">
+                          <p className="text-sm text-purple-700 font-medium mb-1">Average EVA</p>
+                          <p className={`text-2xl font-bold ${evaData.average_eva >= 0 ? 'text-purple-900' : 'text-red-900'}`}>
+                            {formatCurrency(evaData.average_eva, currency)}
+                          </p>
+                        </div>
+                      )}
+
+                      {evaData.average_roic !== null && (
+                        <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg">
+                          <p className="text-sm text-green-700 font-medium mb-1">Avg ROIC</p>
+                          <p className="text-2xl font-bold text-green-900">
+                            {evaData.average_roic.toFixed(2)}%
+                          </p>
+                        </div>
+                      )}
+
+                      {evaData.cumulative_eva !== null && (
+                        <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-lg">
+                          <p className="text-sm text-orange-700 font-medium mb-1">Cumulative EVA</p>
+                          <p className={`text-2xl font-bold ${evaData.cumulative_eva >= 0 ? 'text-orange-900' : 'text-red-900'}`}>
+                            {formatCurrency(evaData.cumulative_eva, currency)}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* EVA Trend Chart */}
+                    <div className="bg-white border border-gray-200 rounded-lg p-6">
+                      <h4 className="text-lg font-semibold text-gray-900 mb-4">EVA Trend</h4>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <BarChart
+                          data={evaData.periods.map((period: any) => ({
+                            year: period.fiscal_year || new Date(period.period).getFullYear(),
+                            eva: period.eva / 1e9,
+                          }))}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="year" />
+                          <YAxis label={{ value: 'Billions', angle: -90, position: 'insideLeft' }} />
+                          <Tooltip
+                            formatter={(value: number) => [
+                              `${currency === 'INR' ? '₹' : '$'}${value.toFixed(2)}B`,
+                              'EVA'
+                            ]}
+                          />
+                          <Bar dataKey="eva" fill="#3b82f6" name="Economic Value Added">
+                            {evaData.periods.map((period: any, index: number) => (
+                              <Bar key={index} fill={period.eva >= 0 ? '#10b981' : '#ef4444'} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    {/* ROIC vs WACC */}
+                    <div className="bg-white border border-gray-200 rounded-lg p-6">
+                      <h4 className="text-lg font-semibold text-gray-900 mb-4">ROIC vs WACC (EVA Spread)</h4>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <LineChart
+                          data={evaData.periods.map((period: any) => ({
+                            year: period.fiscal_year || new Date(period.period).getFullYear(),
+                            roic: period.roic,
+                            wacc: period.wacc,
+                            spread: period.eva_spread,
+                          }))}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="year" />
+                          <YAxis label={{ value: 'Percent (%)', angle: -90, position: 'insideLeft' }} />
+                          <Tooltip formatter={(value: number) => [`${value.toFixed(2)}%`]} />
+                          <Legend />
+                          <Line type="monotone" dataKey="roic" stroke="#10b981" name="ROIC" strokeWidth={2} />
+                          <Line type="monotone" dataKey="wacc" stroke="#ef4444" name="WACC" strokeWidth={2} />
+                          <Line type="monotone" dataKey="spread" stroke="#8b5cf6" name="EVA Spread" strokeWidth={2} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    {/* EVA Metrics Table */}
+                    <div className="bg-white border border-gray-200 rounded-lg p-6">
+                      <h4 className="text-lg font-semibold text-gray-900 mb-4">Period-by-Period EVA Metrics</h4>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year</th>
+                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">NOPAT</th>
+                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Invested Capital</th>
+                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Capital Charge</th>
+                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">EVA</th>
+                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">ROIC</th>
+                              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">EVA Spread</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {evaData.periods.map((period: any, index: number) => (
+                              <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                  {period.fiscal_year || new Date(period.period).getFullYear()}
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
+                                  {formatCurrency(period.nopat, currency)}
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
+                                  {formatCurrency(period.invested_capital, currency)}
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
+                                  {formatCurrency(period.capital_charge, currency)}
+                                </td>
+                                <td className={`px-4 py-3 whitespace-nowrap text-sm text-right font-semibold ${period.eva >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                  {formatCurrency(period.eva, currency)}
+                                </td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-900">
+                                  {period.roic.toFixed(2)}%
+                                </td>
+                                <td className={`px-4 py-3 whitespace-nowrap text-sm text-right font-semibold ${period.eva_spread >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                  {period.eva_spread >= 0 ? '+' : ''}{period.eva_spread.toFixed(2)}%
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* EVA Interpretation */}
+                    <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
+                      <div className="flex">
+                        <div className="flex-shrink-0">
+                          <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <p className="text-sm text-blue-700">
+                            <strong>EVA Interpretation:</strong> EVA measures true economic profit by subtracting the cost of capital from operating profit.
+                            {evaData.latest_eva >= 0
+                              ? ' Positive EVA indicates the company is creating value for shareholders.'
+                              : ' Negative EVA suggests the company is destroying shareholder value.'}
+                            {evaData.periods.filter((p: any) => p.value_creation).length > 0 &&
+                              ` The company has created value in ${evaData.periods.filter((p: any) => p.value_creation).length} of the last ${evaData.periods.length} years.`}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-gray-600 mb-4">No EVA analysis available yet.</p>
                     <button
                       onClick={handleRefreshData}
                       className="bg-primary-600 text-white px-6 py-2 rounded-md hover:bg-primary-700"
