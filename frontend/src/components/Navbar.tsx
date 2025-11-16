@@ -31,6 +31,12 @@ export default function Navbar() {
                   Companies
                 </Link>
                 <Link
+                  href="/valuations"
+                  className="text-gray-700 hover:text-primary-600 px-3 py-2 text-sm font-medium transition"
+                >
+                  Valuations
+                </Link>
+                <Link
                   href="/models"
                   className="text-gray-700 hover:text-primary-600 px-3 py-2 text-sm font-medium transition"
                 >
