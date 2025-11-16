@@ -3,6 +3,7 @@ User model
 """
 from sqlalchemy import Boolean, Column, String, DateTime, Enum
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
 import enum
@@ -35,6 +36,10 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     last_login = Column(DateTime(timezone=True))
+
+    # Relationships
+    dcf_valuations = relationship("DCFValuation", back_populates="user")
+    peer_groups = relationship("PeerGroup", back_populates="user")
 
     def __repr__(self):
         return f"<User {self.email}>"

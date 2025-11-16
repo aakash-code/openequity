@@ -72,6 +72,128 @@ export interface FinancialRatios {
   };
 }
 
+export interface DCFAssumptions {
+  risk_free_rate: number;
+  equity_risk_premium: number;
+  beta: number;
+  cost_of_debt: number;
+  tax_rate: number;
+  debt_weight: number;
+  equity_weight: number;
+  projection_years: number;
+  revenue_growth_rates: number[];
+  ebitda_margin: number;
+  depreciation_pct_revenue: number;
+  capex_pct_revenue: number;
+  nwc_pct_revenue: number;
+  terminal_growth_rate?: number;
+  terminal_ebitda_multiple?: number;
+}
+
+export interface CreateDCFRequest {
+  ticker: string;
+  name: string;
+  description?: string;
+  is_public?: boolean;
+  base_revenue: number;
+  net_debt: number;
+  shares_outstanding: number;
+  current_price?: number;
+  assumptions: DCFAssumptions;
+}
+
+export interface DCFValuation {
+  id: string;
+  ticker: string;
+  user_id: string;
+  name: string;
+  description?: string;
+  is_public: boolean;
+  risk_free_rate: number;
+  equity_risk_premium: number;
+  beta: number;
+  cost_of_debt: number;
+  tax_rate: number;
+  debt_weight: number;
+  equity_weight: number;
+  wacc: number;
+  projection_years: number;
+  revenue_growth_rates: number[];
+  ebitda_margin: number;
+  depreciation_pct_revenue: number;
+  capex_pct_revenue: number;
+  nwc_pct_revenue: number;
+  terminal_growth_rate?: number;
+  terminal_ebitda_multiple?: number;
+  enterprise_value: number;
+  equity_value: number;
+  shares_outstanding: number;
+  value_per_share: number;
+  current_price?: number;
+  upside_downside?: number;
+  projections: any;
+  fcf_projections: number[];
+  terminal_value: number;
+  pv_terminal_value: number;
+  pv_fcf: number;
+  sensitivity_analysis?: any;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface PeerGroup {
+  id: string;
+  ticker: string;
+  user_id: string;
+  name: string;
+  description?: string;
+  peer_tickers: string[];
+  is_public: boolean;
+  analysis_results?: any;
+  last_analyzed?: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface CreatePeerGroupRequest {
+  ticker: string;
+  name: string;
+  description?: string;
+  peer_tickers: string[];
+  is_public?: boolean;
+}
+
+export interface CompanyMetrics {
+  ticker: string;
+  company_name: string;
+  market_cap: number;
+  enterprise_value: number;
+  current_price: number;
+  currency: string;
+  pe_ratio?: number;
+  forward_pe?: number;
+  peg_ratio?: number;
+  price_to_book?: number;
+  price_to_sales?: number;
+  ev_to_revenue?: number;
+  ev_to_ebitda?: number;
+  ev_to_ebit?: number;
+  gross_margin?: number;
+  operating_margin?: number;
+  net_margin?: number;
+  roe?: number;
+  roa?: number;
+  revenue_growth?: number;
+  earnings_growth?: number;
+}
+
+export interface ComparableAnalysis {
+  target: CompanyMetrics;
+  peers: CompanyMetrics[];
+  peer_statistics: Record<string, any>;
+  implied_valuations: Record<string, any>;
+}
+
 class APIClient {
   private baseURL: string;
 
@@ -190,6 +312,97 @@ class APIClient {
       `/api/v1/financials/${ticker}/refresh`,
       { method: 'POST' }
     );
+  }
+
+  // DCF Valuation endpoints
+  async createDCFValuation(data: CreateDCFRequest): Promise<DCFValuation> {
+    return this.request<DCFValuation>('/api/v1/valuations/dcf', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getDCFValuations(ticker?: string, skip: number = 0, limit: number = 20): Promise<{ valuations: DCFValuation[]; total: number }> {
+    const params = new URLSearchParams({ skip: skip.toString(), limit: limit.toString() });
+    if (ticker) params.append('ticker', ticker);
+    return this.request<{ valuations: DCFValuation[]; total: number }>(`/api/v1/valuations/dcf?${params}`);
+  }
+
+  async getDCFValuation(valuationId: string): Promise<DCFValuation> {
+    return this.request<DCFValuation>(`/api/v1/valuations/dcf/${valuationId}`);
+  }
+
+  async updateDCFValuation(valuationId: string, data: Partial<CreateDCFRequest>): Promise<DCFValuation> {
+    return this.request<DCFValuation>(`/api/v1/valuations/dcf/${valuationId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteDCFValuation(valuationId: string): Promise<void> {
+    return this.request<void>(`/api/v1/valuations/dcf/${valuationId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Peer Group / Comps endpoints
+  async createPeerGroup(data: CreatePeerGroupRequest): Promise<PeerGroup> {
+    return this.request<PeerGroup>('/api/v1/valuations/comps/peer-groups', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getPeerGroups(ticker?: string, skip: number = 0, limit: number = 20): Promise<{ peer_groups: PeerGroup[]; total: number }> {
+    const params = new URLSearchParams({ skip: skip.toString(), limit: limit.toString() });
+    if (ticker) params.append('ticker', ticker);
+    return this.request<{ peer_groups: PeerGroup[]; total: number }>(`/api/v1/valuations/comps/peer-groups?${params}`);
+  }
+
+  async getPeerGroup(groupId: string): Promise<PeerGroup> {
+    return this.request<PeerGroup>(`/api/v1/valuations/comps/peer-groups/${groupId}`);
+  }
+
+  async updatePeerGroup(groupId: string, data: Partial<CreatePeerGroupRequest>): Promise<PeerGroup> {
+    return this.request<PeerGroup>(`/api/v1/valuations/comps/peer-groups/${groupId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deletePeerGroup(groupId: string): Promise<void> {
+    return this.request<void>(`/api/v1/valuations/comps/peer-groups/${groupId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async analyzePeerGroup(groupId: string): Promise<ComparableAnalysis> {
+    return this.request<ComparableAnalysis>(`/api/v1/valuations/comps/analyze/${groupId}`, {
+      method: 'POST',
+    });
+  }
+
+  async quickCompsAnalysis(ticker: string, peerTickers: string[]): Promise<ComparableAnalysis> {
+    const params = new URLSearchParams({
+      peer_tickers: peerTickers.join(','),
+    });
+    return this.request<ComparableAnalysis>(`/api/v1/valuations/comps/analyze/ticker/${ticker}?${params}`);
+  }
+
+  // WACC Calculator
+  async calculateWACC(data: {
+    risk_free_rate: number;
+    beta: number;
+    equity_risk_premium: number;
+    cost_of_debt: number;
+    tax_rate: number;
+    equity_weight: number;
+    debt_weight: number;
+  }): Promise<{ cost_of_equity: number; wacc: number }> {
+    return this.request<{ cost_of_equity: number; wacc: number }>('/api/v1/valuations/wacc/calculate', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 }
 

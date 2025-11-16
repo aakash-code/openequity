@@ -2,6 +2,7 @@
 Company model
 """
 from sqlalchemy import Boolean, Column, String, Integer, Numeric, DateTime
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.db.base import Base
@@ -27,6 +28,10 @@ class Company(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    dcf_valuations = relationship("DCFValuation", back_populates="company")
+    peer_groups = relationship("PeerGroup", back_populates="company")
 
     def __repr__(self):
         return f"<Company {self.ticker}: {self.name}>"
