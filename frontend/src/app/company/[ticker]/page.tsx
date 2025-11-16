@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { api, Company, FinancialStatement, FinancialRatios } from '@/lib/api';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts';
 
 interface PageProps {
   params: { ticker: string };
@@ -15,8 +16,9 @@ export default function CompanyDetailPage({ params }: PageProps) {
   const [company, setCompany] = useState<Company | null>(null);
   const [statements, setStatements] = useState<FinancialStatement[]>([]);
   const [ratios, setRatios] = useState<FinancialRatios | null>(null);
+  const [trendData, setTrendData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'financials' | 'ratios'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'financials' | 'ratios' | 'trends'>('overview');
   const [statementType, setStatementType] = useState<'income' | 'balance' | 'cashflow'>('income');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -46,6 +48,14 @@ export default function CompanyDetailPage({ params }: PageProps) {
           setRatios(ratiosData);
         } catch (err) {
           console.log('Ratios not available yet');
+        }
+
+        // Fetch trend data
+        try {
+          const trendsData = await api.getTrendAnalysis(params.ticker, 10);
+          setTrendData(trendsData.analysis);
+        } catch (err) {
+          console.log('Trends not available yet');
         }
       } catch (error: any) {
         console.error('Error fetching company data:', error);
@@ -154,7 +164,7 @@ export default function CompanyDetailPage({ params }: PageProps) {
         <div className="bg-white rounded-lg shadow-md mb-6">
           <div className="border-b border-gray-200">
             <nav className="flex space-x-8 px-6" aria-label="Tabs">
-              {(['overview', 'financials', 'ratios'] as const).map((tab) => (
+              {(['overview', 'financials', 'ratios', 'trends'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -453,6 +463,195 @@ export default function CompanyDetailPage({ params }: PageProps) {
                 ) : (
                   <div className="text-center py-12">
                     <p className="text-gray-600 mb-4">No ratio data available yet.</p>
+                    <button
+                      onClick={handleRefreshData}
+                      className="bg-primary-600 text-white px-6 py-2 rounded-md hover:bg-primary-700"
+                    >
+                      Fetch Financial Data
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Trends Tab */}
+            {activeTab === 'trends' && (
+              <div className="space-y-8">
+                <h3 className="text-xl font-semibold text-gray-900">Historical Trends & Analysis</h3>
+
+                {trendData ? (
+                  <>
+                    {/* Growth Metrics Summary Cards */}
+                    {trendData.revenue_analysis && (
+                      <div>
+                        <h4 className="text-lg font-semibold text-gray-900 mb-4">Growth Metrics</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                          <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-lg">
+                            <p className="text-sm text-blue-700 font-medium mb-1">Current Revenue</p>
+                            <p className="text-2xl font-bold text-blue-900">
+                              {formatCurrency(trendData.revenue_analysis.current_revenue, currency)}
+                            </p>
+                          </div>
+                          {trendData.revenue_analysis.latest_growth !== null && (
+                            <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg">
+                              <p className="text-sm text-green-700 font-medium mb-1">Latest YoY Growth</p>
+                              <p className={`text-2xl font-bold ${trendData.revenue_analysis.latest_growth >= 0 ? 'text-green-900' : 'text-red-900'}`}>
+                                {trendData.revenue_analysis.latest_growth >= 0 ? '+' : ''}{trendData.revenue_analysis.latest_growth.toFixed(2)}%
+                              </p>
+                            </div>
+                          )}
+                          {trendData.revenue_analysis.cagr !== null && (
+                            <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-4 rounded-lg">
+                              <p className="text-sm text-purple-700 font-medium mb-1">CAGR</p>
+                              <p className="text-2xl font-bold text-purple-900">
+                                {trendData.revenue_analysis.cagr.toFixed(2)}%
+                              </p>
+                            </div>
+                          )}
+                          {trendData.revenue_analysis.average_growth !== null && (
+                            <div className="bg-gradient-to-br from-orange-50 to-orange-100 p-4 rounded-lg">
+                              <p className="text-sm text-orange-700 font-medium mb-1">Avg Growth</p>
+                              <p className="text-2xl font-bold text-orange-900">
+                                {trendData.revenue_analysis.average_growth.toFixed(2)}%
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Revenue Trend Chart */}
+                    {trendData.revenue_analysis && trendData.revenue_analysis.revenues && (
+                      <div className="bg-white border border-gray-200 rounded-lg p-6">
+                        <h4 className="text-lg font-semibold text-gray-900 mb-4">Revenue Trend</h4>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <AreaChart
+                            data={trendData.revenue_analysis.periods.map((period: string, index: number) => ({
+                              period: new Date(period).getFullYear(),
+                              revenue: trendData.revenue_analysis.revenues[index] / 1e9,
+                            }))}
+                          >
+                            <defs>
+                              <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1}/>
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="period" />
+                            <YAxis label={{ value: 'Billions', angle: -90, position: 'insideLeft' }} />
+                            <Tooltip formatter={(value: number) => [`${currency === 'INR' ? '₹' : '$'}${value.toFixed(2)}B`, 'Revenue']} />
+                            <Area type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorRevenue)" />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+
+                    {/* Profitability Margins Trend */}
+                    {trendData.profitability_analysis && trendData.profitability_analysis.margins && (
+                      <div className="bg-white border border-gray-200 rounded-lg p-6">
+                        <h4 className="text-lg font-semibold text-gray-900 mb-4">Profitability Margins</h4>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <LineChart
+                            data={trendData.profitability_analysis.periods.map((period: string, index: number) => {
+                              const data: any = { period: new Date(period).getFullYear() };
+                              Object.entries(trendData.profitability_analysis.margins).forEach(([key, margin]: [string, any]) => {
+                                if (margin.historical && margin.historical[index] !== null) {
+                                  data[key] = margin.historical[index];
+                                }
+                              });
+                              return data;
+                            })}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="period" />
+                            <YAxis label={{ value: 'Margin (%)', angle: -90, position: 'insideLeft' }} />
+                            <Tooltip formatter={(value: number) => [`${value.toFixed(2)}%`]} />
+                            <Legend />
+                            <Line type="monotone" dataKey="gross_margin" stroke="#10b981" name="Gross Margin" strokeWidth={2} />
+                            <Line type="monotone" dataKey="operating_margin" stroke="#3b82f6" name="Operating Margin" strokeWidth={2} />
+                            <Line type="monotone" dataKey="net_margin" stroke="#8b5cf6" name="Net Margin" strokeWidth={2} />
+                          </LineChart>
+                        </ResponsiveContainer>
+
+                        {/* Margin Trends Summary */}
+                        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {Object.entries(trendData.profitability_analysis.margins).map(([key, margin]: [string, any]) => (
+                            <div key={key} className="bg-gray-50 p-3 rounded">
+                              <p className="text-xs text-gray-500 mb-1">{key.replace(/_/g, ' ').toUpperCase()}</p>
+                              <div className="flex justify-between items-center">
+                                <p className="text-lg font-semibold">{margin.current.toFixed(2)}%</p>
+                                <span className={`text-sm px-2 py-1 rounded ${
+                                  margin.trend === 'improving' ? 'bg-green-100 text-green-700' :
+                                  margin.trend === 'declining' ? 'bg-red-100 text-red-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {margin.change >= 0 ? '+' : ''}{margin.change.toFixed(2)}%
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Balance Sheet Trend */}
+                    {trendData.balance_sheet_analysis && trendData.balance_sheet_analysis.total_assets && (
+                      <div className="bg-white border border-gray-200 rounded-lg p-6">
+                        <h4 className="text-lg font-semibold text-gray-900 mb-4">Balance Sheet Evolution</h4>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <BarChart
+                            data={trendData.balance_sheet_analysis.periods.map((period: string, index: number) => ({
+                              period: new Date(period).getFullYear(),
+                              assets: trendData.balance_sheet_analysis.total_assets[index] / 1e9,
+                              liabilities: trendData.balance_sheet_analysis.total_liabilities[index] / 1e9,
+                              equity: trendData.balance_sheet_analysis.total_equity[index] / 1e9,
+                            }))}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="period" />
+                            <YAxis label={{ value: 'Billions', angle: -90, position: 'insideLeft' }} />
+                            <Tooltip formatter={(value: number) => [`${currency === 'INR' ? '₹' : '$'}${value.toFixed(2)}B`]} />
+                            <Legend />
+                            <Bar dataKey="assets" fill="#3b82f6" name="Total Assets" />
+                            <Bar dataKey="liabilities" fill="#ef4444" name="Total Liabilities" />
+                            <Bar dataKey="equity" fill="#10b981" name="Total Equity" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+
+                    {/* Cash Flow Trend */}
+                    {trendData.cashflow_analysis && trendData.cashflow_analysis.operating_cashflow && (
+                      <div className="bg-white border border-gray-200 rounded-lg p-6">
+                        <h4 className="text-lg font-semibold text-gray-900 mb-4">Cash Flow Trends</h4>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <BarChart
+                            data={trendData.cashflow_analysis.periods.map((period: string, index: number) => ({
+                              period: new Date(period).getFullYear(),
+                              operating: trendData.cashflow_analysis.operating_cashflow[index] / 1e9,
+                              investing: trendData.cashflow_analysis.investing_cashflow[index] / 1e9,
+                              financing: trendData.cashflow_analysis.financing_cashflow[index] / 1e9,
+                              free: trendData.cashflow_analysis.free_cashflow[index] / 1e9,
+                            }))}
+                          >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="period" />
+                            <YAxis label={{ value: 'Billions', angle: -90, position: 'insideLeft' }} />
+                            <Tooltip formatter={(value: number) => [`${currency === 'INR' ? '₹' : '$'}${value.toFixed(2)}B`]} />
+                            <Legend />
+                            <Bar dataKey="operating" fill="#10b981" name="Operating CF" />
+                            <Bar dataKey="investing" fill="#f59e0b" name="Investing CF" />
+                            <Bar dataKey="financing" fill="#ef4444" name="Financing CF" />
+                            <Bar dataKey="free" fill="#8b5cf6" name="Free CF" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-gray-600 mb-4">No trend data available yet.</p>
                     <button
                       onClick={handleRefreshData}
                       className="bg-primary-600 text-white px-6 py-2 rounded-md hover:bg-primary-700"
