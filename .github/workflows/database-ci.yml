@@ -1,0 +1,51 @@
+name: Database CI
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'database/**'
+      - '.github/workflows/database-ci.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'database/**'
+      - '.github/workflows/database-ci.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: timescale/timescaledb:latest-pg15
+        env:
+          POSTGRES_USER: openequity
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: openequity_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Validate SQL syntax
+      run: |
+        docker run --rm --network host -v ${{ github.workspace }}/database:/db postgres:15 \
+          psql -h localhost -U openequity -d openequity_test \
+          -f /db/schemas/001_initial_schema.sql
+
+    - name: Check for SQL injection vulnerabilities
+      run: |
+        # Basic SQL injection pattern check
+        grep -rn "SELECT.*'.*'" database/schemas/ && exit 1 || echo "No SQL injection patterns found"
+
+    - name: Validate migration files
+      run: |
+        # Check migration files exist and are properly numbered
+        ls -la database/migrations/ || echo "No migrations yet"

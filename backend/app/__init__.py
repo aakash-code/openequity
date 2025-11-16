@@ -1,0 +1,1 @@
+"""OpenEquity Backend Application"""

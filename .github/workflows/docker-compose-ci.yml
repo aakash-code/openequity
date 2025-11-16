@@ -1,0 +1,60 @@
+name: Docker Compose CI
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'docker-compose.yml'
+      - 'backend/Dockerfile'
+      - 'frontend/Dockerfile'
+      - '.github/workflows/docker-compose-ci.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'docker-compose.yml'
+      - 'backend/Dockerfile'
+      - 'frontend/Dockerfile'
+      - '.github/workflows/docker-compose-ci.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Validate docker-compose.yml
+      run: |
+        docker-compose config
+
+    - name: Build services
+      run: |
+        docker-compose build
+
+    - name: Start services
+      run: |
+        docker-compose up -d
+        sleep 30
+
+    - name: Check service health
+      run: |
+        docker-compose ps
+
+        # Check if backend is responding
+        curl -f http://localhost:8000/health || exit 1
+
+        # Check if frontend is responding
+        curl -f http://localhost:3000 || exit 1
+
+    - name: View logs
+      if: failure()
+      run: |
+        docker-compose logs
+
+    - name: Stop services
+      if: always()
+      run: |
+        docker-compose down -v
