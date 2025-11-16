@@ -943,6 +943,85 @@ class APIClient {
     const params = new URLSearchParams({ instrument_type: instrumentType });
     return this.request<any>(`/api/v1/derivatives/futures/oi-analysis/${ticker}?${params}`);
   }
+
+  // Real-time Data endpoints (OpenAlgo integration)
+  async pingOpenAlgo(): Promise<any> {
+    return this.request<any>('/api/v1/realtime/ping');
+  }
+
+  async getRealTimeQuotes(symbols: string[], exchange: string = 'NSE'): Promise<any> {
+    return this.request<any>('/api/v1/realtime/quotes', {
+      method: 'POST',
+      body: JSON.stringify({ symbols, exchange }),
+    });
+  }
+
+  async getHistoricalData(
+    symbol: string,
+    exchange: string = 'NSE',
+    interval: string = '1d',
+    startDate?: string,
+    endDate?: string
+  ): Promise<any> {
+    return this.request<any>('/api/v1/realtime/history', {
+      method: 'POST',
+      body: JSON.stringify({
+        symbol,
+        exchange,
+        interval,
+        start_date: startDate,
+        end_date: endDate
+      }),
+    });
+  }
+
+  async getMarketDepth(symbol: string, exchange: string = 'NSE'): Promise<any> {
+    const params = new URLSearchParams({ exchange });
+    return this.request<any>(`/api/v1/realtime/depth/${symbol}?${params}`);
+  }
+
+  async searchSymbols(query: string, exchange?: string): Promise<any> {
+    const params = new URLSearchParams({ query });
+    if (exchange) params.append('exchange', exchange);
+    return this.request<any>(`/api/v1/realtime/search?${params}`);
+  }
+
+  async getBrokerPositions(): Promise<any> {
+    return this.request<any>('/api/v1/realtime/positions');
+  }
+
+  async getBrokerHoldings(): Promise<any> {
+    return this.request<any>('/api/v1/realtime/holdings');
+  }
+
+  async getAccountFunds(): Promise<any> {
+    return this.request<any>('/api/v1/realtime/funds');
+  }
+
+  async getOrderBook(): Promise<any> {
+    return this.request<any>('/api/v1/realtime/orders');
+  }
+
+  async placeBrokerOrder(data: {
+    symbol: string;
+    exchange: string;
+    action: string;
+    quantity: number;
+    price?: number;
+    order_type?: string;
+    product?: string;
+  }): Promise<any> {
+    return this.request<any>('/api/v1/realtime/place-order', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async cancelBrokerOrder(orderId: string): Promise<any> {
+    return this.request<any>(`/api/v1/realtime/cancel-order/${orderId}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const api = new APIClient();
