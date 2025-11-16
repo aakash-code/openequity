@@ -529,6 +529,40 @@ class APIClient {
       body: JSON.stringify(data),
     });
   }
+
+  // Earnings Quality endpoints
+  async getBeneishMScore(ticker: string): Promise<any> {
+    return this.request<any>(`/api/v1/earnings-quality/${ticker}/beneish-mscore`);
+  }
+
+  async getAltmanZScore(
+    ticker: string,
+    marketCap?: number,
+    companyType: string = 'public_manufacturing',
+    limit: number = 5
+  ): Promise<any> {
+    const params = new URLSearchParams({
+      company_type: companyType,
+      limit: limit.toString()
+    });
+    if (marketCap) params.append('market_cap', marketCap.toString());
+    return this.request<any>(`/api/v1/earnings-quality/${ticker}/altman-zscore?${params}`);
+  }
+
+  async getEarningsQuality(ticker: string, limit: number = 5): Promise<any> {
+    const params = new URLSearchParams({ limit: limit.toString() });
+    return this.request<any>(`/api/v1/earnings-quality/${ticker}/earnings-quality?${params}`);
+  }
+
+  async getQualityDashboard(
+    ticker: string,
+    marketCap?: number,
+    companyType: string = 'public_manufacturing'
+  ): Promise<any> {
+    const params = new URLSearchParams({ company_type: companyType });
+    if (marketCap) params.append('market_cap', marketCap.toString());
+    return this.request<any>(`/api/v1/earnings-quality/${ticker}/quality-dashboard?${params}`);
+  }
 }
 
 export const api = new APIClient();
