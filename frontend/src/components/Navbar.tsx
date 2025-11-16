@@ -60,6 +60,12 @@ export default function Navbar() {
                 >
                   Indian Market
                 </Link>
+                <Link
+                  href="/ipo"
+                  className="text-gray-700 hover:text-primary-600 px-3 py-2 text-sm font-medium transition"
+                >
+                  IPO
+                </Link>
               </div>
             )}
           </div>

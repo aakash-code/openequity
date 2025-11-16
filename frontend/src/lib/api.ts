@@ -830,6 +830,63 @@ class APIClient {
     });
     return this.request<any>(`/api/v1/currency/historical?${params}`);
   }
+
+  // IPO and Primary Market endpoints
+  async getIPOs(status?: string, limit: number = 50): Promise<any> {
+    const params = new URLSearchParams({ limit: limit.toString() });
+    if (status) params.append('status', status);
+    return this.request<any>(`/api/v1/primary-market/ipos?${params}`);
+  }
+
+  async getIPODetails(ipoId: string): Promise<any> {
+    return this.request<any>(`/api/v1/primary-market/ipos/${ipoId}`);
+  }
+
+  async getIPOSubscription(ipoId: string): Promise<any> {
+    return this.request<any>(`/api/v1/primary-market/ipos/${ipoId}/subscription`);
+  }
+
+  async getIPOListingGains(ipoId: string): Promise<any> {
+    return this.request<any>(`/api/v1/primary-market/ipos/${ipoId}/listing-gains`);
+  }
+
+  async getIPOGreyMarketPremium(ipoId: string): Promise<any> {
+    return this.request<any>(`/api/v1/primary-market/ipos/${ipoId}/gmp`);
+  }
+
+  async checkIPOAllotment(ipoId: string, applicationNumber: string): Promise<any> {
+    return this.request<any>(`/api/v1/primary-market/ipos/${ipoId}/allotment/${applicationNumber}`);
+  }
+
+  async getRightsIssues(status?: string, limit: number = 20): Promise<any> {
+    const params = new URLSearchParams({ limit: limit.toString() });
+    if (status) params.append('status', status);
+    return this.request<any>(`/api/v1/primary-market/rights-issues?${params}`);
+  }
+
+  async getRightsIssueDetails(issueId: string): Promise<any> {
+    return this.request<any>(`/api/v1/primary-market/rights-issues/${issueId}`);
+  }
+
+  async getOFSList(status?: string, limit: number = 20): Promise<any> {
+    const params = new URLSearchParams({ limit: limit.toString() });
+    if (status) params.append('status', status);
+    return this.request<any>(`/api/v1/primary-market/ofs?${params}`);
+  }
+
+  async getOFSDetails(ofsId: string): Promise<any> {
+    return this.request<any>(`/api/v1/primary-market/ofs/${ofsId}`);
+  }
+
+  async getBuybacks(status?: string, limit: number = 20): Promise<any> {
+    const params = new URLSearchParams({ limit: limit.toString() });
+    if (status) params.append('status', status);
+    return this.request<any>(`/api/v1/primary-market/buybacks?${params}`);
+  }
+
+  async getBuybackDetails(buybackId: string): Promise<any> {
+    return this.request<any>(`/api/v1/primary-market/buybacks/${buybackId}`);
+  }
 }
 
 export const api = new APIClient();
