@@ -713,6 +713,123 @@ class APIClient {
       body: additionalCriteria ? JSON.stringify(additionalCriteria) : undefined,
     });
   }
+
+  // Indian Market endpoints
+  async getIndianIndices(): Promise<any> {
+    return this.request<any>('/api/v1/indian-market/indices');
+  }
+
+  async getMarketStatus(): Promise<any> {
+    return this.request<any>('/api/v1/indian-market/market-status');
+  }
+
+  async getCorporateActions(ticker: string, actionType?: string, days: number = 90): Promise<any> {
+    const params = new URLSearchParams({ days: days.toString() });
+    if (actionType) params.append('action_type', actionType);
+    return this.request<any>(`/api/v1/indian-market/corporate-actions/${ticker}?${params}`);
+  }
+
+  async getPriceBands(ticker: string, currentPrice: number): Promise<any> {
+    const params = new URLSearchParams({ current_price: currentPrice.toString() });
+    return this.request<any>(`/api/v1/indian-market/price-bands/${ticker}?${params}`);
+  }
+
+  async getDeliveryPercentage(ticker: string, days: number = 30): Promise<any> {
+    const params = new URLSearchParams({ days: days.toString() });
+    return this.request<any>(`/api/v1/indian-market/delivery/${ticker}?${params}`);
+  }
+
+  async getFiiDiiActivity(days: number = 30): Promise<any> {
+    const params = new URLSearchParams({ days: days.toString() });
+    return this.request<any>(`/api/v1/indian-market/fii-dii?${params}`);
+  }
+
+  async getNseSectors(): Promise<any> {
+    return this.request<any>('/api/v1/indian-market/sectors');
+  }
+
+  // SEBI Filings endpoints
+  async getSebiFilingTypes(): Promise<any> {
+    return this.request<any>('/api/v1/sebi/filing-types');
+  }
+
+  async getSebiFilings(ticker: string, filingType?: string, days: number = 90, limit: number = 50): Promise<any> {
+    const params = new URLSearchParams({
+      days: days.toString(),
+      limit: limit.toString()
+    });
+    if (filingType) params.append('filing_type', filingType);
+    return this.request<any>(`/api/v1/sebi/filings/${ticker}?${params}`);
+  }
+
+  async getShareholdingPattern(ticker: string, quarter?: string): Promise<any> {
+    const params = quarter ? new URLSearchParams({ quarter }) : new URLSearchParams();
+    return this.request<any>(`/api/v1/sebi/shareholding/${ticker}?${params}`);
+  }
+
+  async getBoardMeetings(ticker: string, daysAhead: number = 30, daysBack: number = 90): Promise<any> {
+    const params = new URLSearchParams({
+      days_ahead: daysAhead.toString(),
+      days_back: daysBack.toString()
+    });
+    return this.request<any>(`/api/v1/sebi/board-meetings/${ticker}?${params}`);
+  }
+
+  async getInsiderTrading(ticker: string, days: number = 180, limit: number = 50): Promise<any> {
+    const params = new URLSearchParams({
+      days: days.toString(),
+      limit: limit.toString()
+    });
+    return this.request<any>(`/api/v1/sebi/insider-trading/${ticker}?${params}`);
+  }
+
+  async getComplianceStatus(ticker: string): Promise<any> {
+    return this.request<any>(`/api/v1/sebi/compliance/${ticker}`);
+  }
+
+  // Currency Conversion endpoints
+  async getSupportedCurrencies(): Promise<any> {
+    return this.request<any>('/api/v1/currency/supported');
+  }
+
+  async getExchangeRate(fromCurrency: string, toCurrency: string): Promise<any> {
+    const params = new URLSearchParams({
+      from_currency: fromCurrency,
+      to_currency: toCurrency
+    });
+    return this.request<any>(`/api/v1/currency/rate?${params}`);
+  }
+
+  async convertCurrency(amount: number, fromCurrency: string, toCurrency: string): Promise<any> {
+    return this.request<any>('/api/v1/currency/convert', {
+      method: 'POST',
+      body: JSON.stringify({
+        amount,
+        from_currency: fromCurrency,
+        to_currency: toCurrency
+      }),
+    });
+  }
+
+  async convertMetrics(metrics: Record<string, number>, fromCurrency: string, toCurrency: string): Promise<any> {
+    return this.request<any>('/api/v1/currency/convert-metrics', {
+      method: 'POST',
+      body: JSON.stringify({
+        metrics,
+        from_currency: fromCurrency,
+        to_currency: toCurrency
+      }),
+    });
+  }
+
+  async getHistoricalRates(fromCurrency: string, toCurrency: string, days: number = 30): Promise<any> {
+    const params = new URLSearchParams({
+      from_currency: fromCurrency,
+      to_currency: toCurrency,
+      days: days.toString()
+    });
+    return this.request<any>(`/api/v1/currency/historical?${params}`);
+  }
 }
 
 export const api = new APIClient();

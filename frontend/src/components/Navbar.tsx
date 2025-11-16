@@ -54,6 +54,12 @@ export default function Navbar() {
                 >
                   Screener
                 </Link>
+                <Link
+                  href="/indian-market"
+                  className="text-gray-700 hover:text-primary-600 px-3 py-2 text-sm font-medium transition"
+                >
+                  Indian Market
+                </Link>
               </div>
             )}
           </div>

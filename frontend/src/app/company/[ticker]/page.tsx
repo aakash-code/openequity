@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { api, Company, FinancialStatement, FinancialRatios } from '@/lib/api';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts';
+import SebiFilingsDisplay from '@/components/SebiFilingsDisplay';
 
 interface PageProps {
   params: { ticker: string };
@@ -20,9 +21,11 @@ export default function CompanyDetailPage({ params }: PageProps) {
   const [evaData, setEvaData] = useState<any>(null);
   const [qualityData, setQualityData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'financials' | 'ratios' | 'trends' | 'eva' | 'quality'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'financials' | 'ratios' | 'trends' | 'eva' | 'quality' | 'sebi'>('overview');
   const [statementType, setStatementType] = useState<'income' | 'balance' | 'cashflow'>('income');
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedCurrency, setSelectedCurrency] = useState<'USD' | 'INR'>('USD');
+  const [exchangeRate, setExchangeRate] = useState<number>(1);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -43,6 +46,10 @@ export default function CompanyDetailPage({ params }: PageProps) {
 
         setCompany(companyData);
         setStatements(statementsData);
+
+        // Set default currency based on exchange
+        const defaultCurrency = companyData.exchange === 'NSE' || companyData.exchange === 'BSE' ? 'INR' : 'USD';
+        setSelectedCurrency(defaultCurrency);
 
         // Try to fetch ratios (may fail if no data)
         try {
@@ -85,6 +92,36 @@ export default function CompanyDetailPage({ params }: PageProps) {
     fetchData();
   }, [params.ticker, statementType, isAuthenticated]);
 
+  // Fetch exchange rate when currency changes
+  useEffect(() => {
+    const fetchExchangeRate = async () => {
+      if (!company) return;
+
+      const nativeCurrency = getCurrency(company.exchange);
+
+      // If selected currency is same as native, rate is 1
+      if (selectedCurrency === nativeCurrency) {
+        setExchangeRate(1);
+        return;
+      }
+
+      // Fetch conversion rate
+      try {
+        const rateData = await api.getExchangeRate(nativeCurrency, selectedCurrency);
+        setExchangeRate(rateData.rate);
+      } catch (error) {
+        console.error('Error fetching exchange rate:', error);
+        setExchangeRate(1);
+      }
+    };
+
+    fetchExchangeRate();
+  }, [selectedCurrency, company]);
+
+  const handleCurrencyToggle = () => {
+    setSelectedCurrency(prev => prev === 'USD' ? 'INR' : 'USD');
+  };
+
   const handleRefreshData = async () => {
     try {
       setRefreshing(true);
@@ -105,19 +142,35 @@ export default function CompanyDetailPage({ params }: PageProps) {
     }
   };
 
-  const formatCurrency = (value: number, currency: string = 'USD') => {
+  const formatCurrency = (value: number, nativeCurrency?: string) => {
     if (!value) return 'N/A';
-    const locale = currency === 'INR' ? 'en-IN' : 'en-US';
-    const symbol = currency === 'INR' ? '₹' : '$';
 
-    if (Math.abs(value) >= 1e9) {
-      return `${symbol}${(value / 1e9).toFixed(2)}B`;
-    } else if (Math.abs(value) >= 1e6) {
-      return `${symbol}${(value / 1e6).toFixed(2)}M`;
-    } else if (Math.abs(value) >= 1e3) {
-      return `${symbol}${(value / 1e3).toFixed(2)}K`;
+    // Convert to selected currency
+    const convertedValue = value * exchangeRate;
+
+    const locale = selectedCurrency === 'INR' ? 'en-IN' : 'en-US';
+    const symbol = selectedCurrency === 'INR' ? '₹' : '$';
+
+    // Use Indian formatting for INR
+    if (selectedCurrency === 'INR') {
+      if (Math.abs(convertedValue) >= 1e7) {
+        return `${symbol}${(convertedValue / 1e7).toFixed(2)} Cr`;
+      } else if (Math.abs(convertedValue) >= 1e5) {
+        return `${symbol}${(convertedValue / 1e5).toFixed(2)} L`;
+      } else if (Math.abs(convertedValue) >= 1e3) {
+        return `${symbol}${(convertedValue / 1e3).toFixed(2)} K`;
+      }
+    } else {
+      if (Math.abs(convertedValue) >= 1e9) {
+        return `${symbol}${(convertedValue / 1e9).toFixed(2)}B`;
+      } else if (Math.abs(convertedValue) >= 1e6) {
+        return `${symbol}${(convertedValue / 1e6).toFixed(2)}M`;
+      } else if (Math.abs(convertedValue) >= 1e3) {
+        return `${symbol}${(convertedValue / 1e3).toFixed(2)}K`;
+      }
     }
-    return `${symbol}${value.toLocaleString(locale)}`;
+
+    return `${symbol}${convertedValue.toLocaleString(locale)}`;
   };
 
   const getCurrency = (exchange?: string) => {
@@ -164,17 +217,26 @@ export default function CompanyDetailPage({ params }: PageProps) {
               </div>
               {company.market_cap && (
                 <p className="text-lg text-gray-700 mt-2">
-                  Market Cap: {formatCurrency(company.market_cap, currency)}
+                  Market Cap: {formatCurrency(company.market_cap)}
                 </p>
               )}
             </div>
-            <button
-              onClick={handleRefreshData}
-              disabled={refreshing}
-              className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition disabled:opacity-50"
-            >
-              {refreshing ? 'Refreshing...' : 'Refresh Data'}
-            </button>
+            <div className="flex gap-3 items-start">
+              <button
+                onClick={handleCurrencyToggle}
+                className="bg-white border-2 border-primary-600 text-primary-600 px-4 py-2 rounded-md hover:bg-primary-50 transition"
+                title={`Switch to ${selectedCurrency === 'USD' ? 'INR' : 'USD'}`}
+              >
+                {selectedCurrency} {selectedCurrency === 'USD' ? '→ INR' : '→ USD'}
+              </button>
+              <button
+                onClick={handleRefreshData}
+                disabled={refreshing}
+                className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition disabled:opacity-50"
+              >
+                {refreshing ? 'Refreshing...' : 'Refresh Data'}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -182,17 +244,17 @@ export default function CompanyDetailPage({ params }: PageProps) {
         <div className="bg-white rounded-lg shadow-md mb-6">
           <div className="border-b border-gray-200">
             <nav className="flex space-x-8 px-6" aria-label="Tabs">
-              {(['overview', 'financials', 'ratios', 'trends', 'eva', 'quality'] as const).map((tab) => (
+              {(['overview', 'financials', 'ratios', 'trends', 'eva', 'quality', ...(company.exchange === 'NSE' || company.exchange === 'BSE' ? ['sebi'] : [])] as const).map((tab) => (
                 <button
                   key={tab}
-                  onClick={() => setActiveTab(tab)}
+                  onClick={() => setActiveTab(tab as any)}
                   className={`py-4 px-1 border-b-2 font-medium text-sm ${
                     activeTab === tab
                       ? 'border-primary-600 text-primary-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  {tab === 'sebi' ? 'SEBI Filings' : tab.charAt(0).toUpperCase() + tab.slice(1)}
                 </button>
               ))}
             </nav>
@@ -1184,6 +1246,14 @@ export default function CompanyDetailPage({ params }: PageProps) {
                     </button>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* SEBI Filings Tab */}
+            {activeTab === 'sebi' && (
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-4">SEBI Regulatory Filings</h3>
+                <SebiFilingsDisplay ticker={params.ticker} />
               </div>
             )}
           </div>
