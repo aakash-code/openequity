@@ -887,6 +887,62 @@ class APIClient {
   async getBuybackDetails(buybackId: string): Promise<any> {
     return this.request<any>(`/api/v1/primary-market/buybacks/${buybackId}`);
   }
+
+  // Options and Derivatives endpoints
+  async getOptionsChain(ticker: string, expiryDate?: string): Promise<any> {
+    const params = expiryDate ? new URLSearchParams({ expiry_date: expiryDate }) : new URLSearchParams();
+    return this.request<any>(`/api/v1/derivatives/options/chain/${ticker}?${params}`);
+  }
+
+  async calculateOptionGreeks(
+    spotPrice: number,
+    strike: number,
+    timeToExpiry: number,
+    volatility: number,
+    optionType: string,
+    riskFreeRate: number = 0.05
+  ): Promise<any> {
+    const params = new URLSearchParams({
+      spot_price: spotPrice.toString(),
+      strike: strike.toString(),
+      time_to_expiry: timeToExpiry.toString(),
+      volatility: volatility.toString(),
+      option_type: optionType,
+      risk_free_rate: riskFreeRate.toString()
+    });
+    return this.request<any>(`/api/v1/derivatives/options/greeks?${params}`);
+  }
+
+  async analyzeOptionsStrategy(ticker: string, legs: any[]): Promise<any> {
+    return this.request<any>('/api/v1/derivatives/options/strategy', {
+      method: 'POST',
+      body: JSON.stringify({ ticker, legs }),
+    });
+  }
+
+  async getFuturesChain(ticker: string, expiryDate?: string): Promise<any> {
+    const params = expiryDate ? new URLSearchParams({ expiry_date: expiryDate }) : new URLSearchParams();
+    return this.request<any>(`/api/v1/derivatives/futures/chain/${ticker}?${params}`);
+  }
+
+  async calculateMargin(positions: any[]): Promise<any> {
+    return this.request<any>('/api/v1/derivatives/futures/margin', {
+      method: 'POST',
+      body: JSON.stringify({ positions }),
+    });
+  }
+
+  async analyzeFNOPositions(positions: any[]): Promise<any> {
+    return this.request<any>('/api/v1/derivatives/futures/analyze-positions', {
+      method: 'POST',
+      body: JSON.stringify({ positions }),
+    });
+  }
+
+  async getOIAnalysis(ticker: string, instrumentType: string = 'options'): Promise<any> {
+    const params = new URLSearchParams({ instrument_type: instrumentType });
+    return this.request<any>(`/api/v1/derivatives/futures/oi-analysis/${ticker}?${params}`);
+  }
 }
 
 export const api = new APIClient();
