@@ -47,6 +47,31 @@ export interface Company {
   description?: string;
 }
 
+export interface FinancialStatement {
+  id: string;
+  ticker: string;
+  statement_type: 'income' | 'balance' | 'cashflow';
+  period_type: 'annual' | 'quarterly';
+  period_end: string;
+  fiscal_year: number;
+  data: Record<string, any>;
+  source?: string;
+}
+
+export interface FinancialRatios {
+  ticker: string;
+  period_end: string;
+  ratios: {
+    profitability: Record<string, number>;
+    liquidity: Record<string, number>;
+    leverage: Record<string, number>;
+    efficiency: Record<string, number>;
+    valuation?: Record<string, number>;
+    cashflow: Record<string, number>;
+    dupont?: Record<string, number>;
+  };
+}
+
 class APIClient {
   private baseURL: string;
 
@@ -140,6 +165,31 @@ class APIClient {
 
   async getCompany(ticker: string): Promise<Company> {
     return this.request<Company>(`/api/v1/companies/${ticker}`);
+  }
+
+  // Financial data endpoints
+  async getFinancialStatements(
+    ticker: string,
+    statementType?: 'income' | 'balance' | 'cashflow',
+    limit: number = 5
+  ): Promise<FinancialStatement[]> {
+    const params = new URLSearchParams({ limit: limit.toString() });
+    if (statementType) params.append('statement_type', statementType);
+
+    return this.request<FinancialStatement[]>(
+      `/api/v1/financials/${ticker}/statements?${params}`
+    );
+  }
+
+  async getFinancialRatios(ticker: string): Promise<FinancialRatios> {
+    return this.request<FinancialRatios>(`/api/v1/financials/${ticker}/ratios`);
+  }
+
+  async refreshFinancialData(ticker: string): Promise<{ message: string; status: string }> {
+    return this.request<{ message: string; status: string }>(
+      `/api/v1/financials/${ticker}/refresh`,
+      { method: 'POST' }
+    );
   }
 }
 
