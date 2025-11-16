@@ -404,6 +404,41 @@ class APIClient {
       body: JSON.stringify(data),
     });
   }
+
+  // Enhanced Analysis endpoints
+  async getCommonSizeStatements(
+    ticker: string,
+    statementType: 'income' | 'balance' | 'cashflow',
+    limit: number = 5
+  ): Promise<any> {
+    const params = new URLSearchParams({ limit: limit.toString() });
+    return this.request<any>(`/api/v1/analysis/${ticker}/common-size/${statementType}?${params}`);
+  }
+
+  async getTrendAnalysis(ticker: string, limit: number = 10): Promise<any> {
+    const params = new URLSearchParams({ limit: limit.toString() });
+    return this.request<any>(`/api/v1/analysis/${ticker}/trends?${params}`);
+  }
+
+  async getRevenueTrend(ticker: string, limit: number = 10): Promise<any> {
+    const params = new URLSearchParams({ limit: limit.toString() });
+    return this.request<any>(`/api/v1/analysis/${ticker}/revenue-trend?${params}`);
+  }
+
+  async getProfitabilityTrend(ticker: string, limit: number = 10): Promise<any> {
+    const params = new URLSearchParams({ limit: limit.toString() });
+    return this.request<any>(`/api/v1/analysis/${ticker}/profitability-trend?${params}`);
+  }
+
+  async getBalanceSheetTrend(ticker: string, limit: number = 10): Promise<any> {
+    const params = new URLSearchParams({ limit: limit.toString() });
+    return this.request<any>(`/api/v1/analysis/${ticker}/balance-sheet-trend?${params}`);
+  }
+
+  async getCashflowTrend(ticker: string, limit: number = 10): Promise<any> {
+    const params = new URLSearchParams({ limit: limit.toString() });
+    return this.request<any>(`/api/v1/analysis/${ticker}/cashflow-trend?${params}`);
+  }
 }
 
 export const api = new APIClient();
