@@ -563,6 +563,79 @@ class APIClient {
     if (marketCap) params.append('market_cap', marketCap.toString());
     return this.request<any>(`/api/v1/earnings-quality/${ticker}/quality-dashboard?${params}`);
   }
+
+  // Portfolio endpoints
+  async createPortfolio(data: {
+    name: string;
+    description?: string;
+    currency?: string;
+    strategy?: string;
+    tags?: string[];
+    is_public?: boolean;
+  }): Promise<any> {
+    return this.request<any>('/api/v1/portfolios/portfolios', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getPortfolios(skip: number = 0, limit: number = 20): Promise<any> {
+    const params = new URLSearchParams({ skip: skip.toString(), limit: limit.toString() });
+    return this.request<any>(`/api/v1/portfolios/portfolios?${params}`);
+  }
+
+  async getPortfolio(portfolioId: string): Promise<any> {
+    return this.request<any>(`/api/v1/portfolios/portfolios/${portfolioId}`);
+  }
+
+  async updatePortfolio(portfolioId: string, data: {
+    name?: string;
+    description?: string;
+    strategy?: string;
+    tags?: string[];
+    is_public?: boolean;
+  }): Promise<any> {
+    return this.request<any>(`/api/v1/portfolios/portfolios/${portfolioId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deletePortfolio(portfolioId: string): Promise<void> {
+    return this.request<void>(`/api/v1/portfolios/portfolios/${portfolioId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async addTransaction(portfolioId: string, data: {
+    ticker: string;
+    transaction_type: 'buy' | 'sell' | 'dividend' | 'split';
+    transaction_date: string;
+    quantity: number;
+    price: number;
+    commission?: number;
+    notes?: string;
+  }): Promise<any> {
+    return this.request<any>(`/api/v1/portfolios/portfolios/${portfolioId}/transactions`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getTransactions(portfolioId: string, skip: number = 0, limit: number = 100): Promise<any> {
+    const params = new URLSearchParams({ skip: skip.toString(), limit: limit.toString() });
+    return this.request<any>(`/api/v1/portfolios/portfolios/${portfolioId}/transactions?${params}`);
+  }
+
+  async deleteTransaction(portfolioId: string, transactionId: string): Promise<void> {
+    return this.request<void>(`/api/v1/portfolios/portfolios/${portfolioId}/transactions/${transactionId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getPortfolioAnalytics(portfolioId: string): Promise<any> {
+    return this.request<any>(`/api/v1/portfolios/portfolios/${portfolioId}/analytics`);
+  }
 }
 
 export const api = new APIClient();

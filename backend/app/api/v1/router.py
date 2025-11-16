@@ -3,7 +3,7 @@ API v1 router aggregating all endpoint routers
 """
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, companies, financials, valuations, analysis, advanced_valuations, earnings_quality
+from app.api.v1.endpoints import auth, companies, financials, valuations, analysis, advanced_valuations, earnings_quality, portfolios
 
 api_router = APIRouter()
 
@@ -15,3 +15,4 @@ api_router.include_router(valuations.router, prefix="/valuations", tags=["valuat
 api_router.include_router(analysis.router, prefix="/analysis", tags=["analysis"])
 api_router.include_router(advanced_valuations.router, prefix="/advanced-valuations", tags=["advanced-valuations"])
 api_router.include_router(earnings_quality.router, prefix="/earnings-quality", tags=["earnings-quality"])
+api_router.include_router(portfolios.router, prefix="/portfolios", tags=["portfolios"])
