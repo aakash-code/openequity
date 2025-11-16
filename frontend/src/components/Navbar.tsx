@@ -48,6 +48,12 @@ export default function Navbar() {
                 >
                   Portfolios
                 </Link>
+                <Link
+                  href="/screener"
+                  className="text-gray-700 hover:text-primary-600 px-3 py-2 text-sm font-medium transition"
+                >
+                  Screener
+                </Link>
               </div>
             )}
           </div>
