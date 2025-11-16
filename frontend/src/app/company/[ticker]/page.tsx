@@ -18,8 +18,9 @@ export default function CompanyDetailPage({ params }: PageProps) {
   const [ratios, setRatios] = useState<FinancialRatios | null>(null);
   const [trendData, setTrendData] = useState<any>(null);
   const [evaData, setEvaData] = useState<any>(null);
+  const [qualityData, setQualityData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'financials' | 'ratios' | 'trends' | 'eva'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'financials' | 'ratios' | 'trends' | 'eva' | 'quality'>('overview');
   const [statementType, setStatementType] = useState<'income' | 'balance' | 'cashflow'>('income');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -65,6 +66,14 @@ export default function CompanyDetailPage({ params }: PageProps) {
           setEvaData(evaAnalysis.eva_analysis);
         } catch (err) {
           console.log('EVA analysis not available yet');
+        }
+
+        // Fetch earnings quality data
+        try {
+          const qualityAnalysis = await api.getQualityDashboard(params.ticker);
+          setQualityData(qualityAnalysis);
+        } catch (err) {
+          console.log('Quality analysis not available yet');
         }
       } catch (error: any) {
         console.error('Error fetching company data:', error);
@@ -173,7 +182,7 @@ export default function CompanyDetailPage({ params }: PageProps) {
         <div className="bg-white rounded-lg shadow-md mb-6">
           <div className="border-b border-gray-200">
             <nav className="flex space-x-8 px-6" aria-label="Tabs">
-              {(['overview', 'financials', 'ratios', 'trends', 'eva'] as const).map((tab) => (
+              {(['overview', 'financials', 'ratios', 'trends', 'eva', 'quality'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -842,6 +851,331 @@ export default function CompanyDetailPage({ params }: PageProps) {
                 ) : (
                   <div className="text-center py-12">
                     <p className="text-gray-600 mb-4">No EVA analysis available yet.</p>
+                    <button
+                      onClick={handleRefreshData}
+                      className="bg-primary-600 text-white px-6 py-2 rounded-md hover:bg-primary-700"
+                    >
+                      Fetch Financial Data
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Quality Tab */}
+            {activeTab === 'quality' && (
+              <div className="space-y-8">
+                <h3 className="text-xl font-semibold text-gray-900">Earnings Quality Analysis</h3>
+
+                {qualityData ? (
+                  <>
+                    {/* Overall Quality Score */}
+                    {qualityData.earnings_quality && qualityData.earnings_quality.quality_score !== undefined && (
+                      <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-lg p-8 border-2 border-indigo-200">
+                        <div className="text-center">
+                          <p className="text-sm text-indigo-700 font-medium mb-2">Overall Earnings Quality Score</p>
+                          <p className={`text-6xl font-bold mb-4 ${
+                            qualityData.earnings_quality.quality_score >= 75 ? 'text-green-600' :
+                            qualityData.earnings_quality.quality_score >= 60 ? 'text-blue-600' :
+                            qualityData.earnings_quality.quality_score >= 40 ? 'text-yellow-600' :
+                            'text-red-600'
+                          }`}>
+                            {qualityData.earnings_quality.quality_score}/100
+                          </p>
+                          <p className="text-sm text-indigo-600">
+                            {qualityData.earnings_quality.overall_assessment}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Three Column Layout for M-Score, Z-Score, and Quality */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      {/* Beneish M-Score */}
+                      {qualityData.beneish_mscore && !qualityData.beneish_mscore.error && (
+                        <div className={`rounded-lg p-6 border-2 ${
+                          qualityData.beneish_mscore.manipulation_risk === 'High'
+                            ? 'bg-red-50 border-red-300'
+                            : 'bg-green-50 border-green-300'
+                        }`}>
+                          <h4 className="text-lg font-semibold mb-4">Beneish M-Score</h4>
+                          <div className="text-center mb-4">
+                            <p className={`text-4xl font-bold ${
+                              qualityData.beneish_mscore.manipulation_risk === 'High'
+                                ? 'text-red-700'
+                                : 'text-green-700'
+                            }`}>
+                              {qualityData.beneish_mscore.mscore?.toFixed(3)}
+                            </p>
+                            <p className="text-sm mt-2">
+                              Risk: <span className="font-semibold">{qualityData.beneish_mscore.manipulation_risk}</span>
+                            </p>
+                            <p className="text-xs text-gray-600 mt-1">
+                              Threshold: {qualityData.beneish_mscore.threshold}
+                            </p>
+                          </div>
+                          <div className="text-xs space-y-1">
+                            {qualityData.beneish_mscore.variables && Object.entries(qualityData.beneish_mscore.variables).map(([key, value]: [string, any]) => (
+                              <div key={key} className="flex justify-between">
+                                <span className="font-medium uppercase">{key}:</span>
+                                <span>{value !== null ? value.toFixed(3) : 'N/A'}</span>
+                              </div>
+                            ))}
+                          </div>
+                          {qualityData.beneish_mscore.interpretation && (
+                            <p className="text-xs mt-4 text-gray-700">
+                              {qualityData.beneish_mscore.interpretation}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Altman Z-Score */}
+                      {qualityData.altman_zscore && !qualityData.altman_zscore.error && qualityData.altman_zscore.latest_zscore && (
+                        <div className={`rounded-lg p-6 border-2 ${
+                          qualityData.altman_zscore.latest_risk_zone === 'Safe'
+                            ? 'bg-green-50 border-green-300'
+                            : qualityData.altman_zscore.latest_risk_zone === 'Grey'
+                            ? 'bg-yellow-50 border-yellow-300'
+                            : 'bg-red-50 border-red-300'
+                        }`}>
+                          <h4 className="text-lg font-semibold mb-4">Altman Z-Score</h4>
+                          <div className="text-center mb-4">
+                            <p className={`text-4xl font-bold ${
+                              qualityData.altman_zscore.latest_risk_zone === 'Safe'
+                                ? 'text-green-700'
+                                : qualityData.altman_zscore.latest_risk_zone === 'Grey'
+                                ? 'text-yellow-700'
+                                : 'text-red-700'
+                            }`}>
+                              {qualityData.altman_zscore.latest_zscore?.toFixed(2)}
+                            </p>
+                            <p className="text-sm mt-2">
+                              Zone: <span className="font-semibold">{qualityData.altman_zscore.latest_risk_zone}</span>
+                            </p>
+                            <p className="text-xs text-gray-600 mt-1">
+                              Trend: {qualityData.altman_zscore.trend}
+                            </p>
+                          </div>
+                          {qualityData.altman_zscore.periods && qualityData.altman_zscore.periods.length > 0 && (
+                            <div className="mb-4">
+                              <ResponsiveContainer width="100%" height={120}>
+                                <LineChart data={qualityData.altman_zscore.periods}>
+                                  <Line type="monotone" dataKey="zscore" stroke="#10b981" strokeWidth={2} dot={{ r: 4 }} />
+                                  <YAxis hide />
+                                  <Tooltip formatter={(value: number) => [value.toFixed(2), 'Z-Score']} />
+                                </LineChart>
+                              </ResponsiveContainer>
+                            </div>
+                          )}
+                          {qualityData.altman_zscore.periods && qualityData.altman_zscore.periods[qualityData.altman_zscore.periods.length - 1]?.interpretation && (
+                            <p className="text-xs text-gray-700">
+                              {qualityData.altman_zscore.periods[qualityData.altman_zscore.periods.length - 1].interpretation}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Accruals Quality */}
+                      {qualityData.earnings_quality && qualityData.earnings_quality.accruals_analysis && (
+                        <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-6">
+                          <h4 className="text-lg font-semibold mb-4">Accruals Analysis</h4>
+                          <div className="space-y-3">
+                            {qualityData.earnings_quality.accruals_analysis.cf_to_income_ratio !== null && (
+                              <div>
+                                <p className="text-xs text-gray-600 mb-1">CF/Income Ratio</p>
+                                <p className={`text-2xl font-bold ${
+                                  qualityData.earnings_quality.accruals_analysis.cf_to_income_ratio > 1.0
+                                    ? 'text-green-700'
+                                    : 'text-red-700'
+                                }`}>
+                                  {qualityData.earnings_quality.accruals_analysis.cf_to_income_ratio?.toFixed(3)}
+                                </p>
+                              </div>
+                            )}
+                            {qualityData.earnings_quality.accruals_analysis.accruals_ratio !== null && (
+                              <div>
+                                <p className="text-xs text-gray-600 mb-1">Accruals Ratio</p>
+                                <p className={`text-2xl font-bold ${
+                                  qualityData.earnings_quality.accruals_analysis.accruals_ratio < 0.3
+                                    ? 'text-green-700'
+                                    : 'text-red-700'
+                                }`}>
+                                  {qualityData.earnings_quality.accruals_analysis.accruals_ratio?.toFixed(3)}
+                                </p>
+                              </div>
+                            )}
+                            {qualityData.earnings_quality.accruals_analysis.assessment && (
+                              <p className="text-xs text-gray-700 mt-3">
+                                {qualityData.earnings_quality.accruals_analysis.assessment}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Earnings Persistence and Revenue Quality */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Earnings Persistence */}
+                      {qualityData.earnings_quality && qualityData.earnings_quality.earnings_persistence && !qualityData.earnings_quality.earnings_persistence.error && (
+                        <div className="bg-white border border-gray-200 rounded-lg p-6">
+                          <h4 className="text-lg font-semibold text-gray-900 mb-4">Earnings Persistence</h4>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-sm text-gray-600 mb-1">Quality Rating</p>
+                              <p className={`text-xl font-bold ${
+                                qualityData.earnings_quality.earnings_persistence.quality_rating === 'High'
+                                  ? 'text-green-600'
+                                  : qualityData.earnings_quality.earnings_persistence.quality_rating === 'Moderate'
+                                  ? 'text-yellow-600'
+                                  : 'text-red-600'
+                              }`}>
+                                {qualityData.earnings_quality.earnings_persistence.quality_rating}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600 mb-1">Positive Earnings</p>
+                              <p className="text-xl font-bold text-gray-900">
+                                {(qualityData.earnings_quality.earnings_persistence.positive_earnings_ratio * 100).toFixed(0)}%
+                              </p>
+                            </div>
+                            {qualityData.earnings_quality.earnings_persistence.coefficient_of_variation !== null && (
+                              <div>
+                                <p className="text-sm text-gray-600 mb-1">Coefficient of Variation</p>
+                                <p className="text-xl font-bold text-gray-900">
+                                  {qualityData.earnings_quality.earnings_persistence.coefficient_of_variation?.toFixed(3)}
+                                </p>
+                              </div>
+                            )}
+                            <div>
+                              <p className="text-sm text-gray-600 mb-1">Consecutive Positive Years</p>
+                              <p className="text-xl font-bold text-green-600">
+                                {qualityData.earnings_quality.earnings_persistence.consecutive_positive_years}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Revenue Quality */}
+                      {qualityData.earnings_quality && qualityData.earnings_quality.revenue_quality && !qualityData.earnings_quality.revenue_quality.error && (
+                        <div className="bg-white border border-gray-200 rounded-lg p-6">
+                          <h4 className="text-lg font-semibold text-gray-900 mb-4">Revenue Quality</h4>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-sm text-gray-600 mb-1">Quality</p>
+                              <p className={`text-xl font-bold ${
+                                qualityData.earnings_quality.revenue_quality.quality === 'High'
+                                  ? 'text-green-600'
+                                  : qualityData.earnings_quality.revenue_quality.quality === 'Moderate'
+                                  ? 'text-yellow-600'
+                                  : 'text-red-600'
+                              }`}>
+                                {qualityData.earnings_quality.revenue_quality.quality}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600 mb-1">Trend</p>
+                              <p className={`text-xl font-bold ${
+                                qualityData.earnings_quality.revenue_quality.trend === 'Improving'
+                                  ? 'text-green-600'
+                                  : qualityData.earnings_quality.revenue_quality.trend === 'Deteriorating'
+                                  ? 'text-red-600'
+                                  : 'text-gray-600'
+                              }`}>
+                                {qualityData.earnings_quality.revenue_quality.trend}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-gray-600 mb-1">Days Sales Outstanding</p>
+                              <p className="text-xl font-bold text-gray-900">
+                                {qualityData.earnings_quality.revenue_quality.days_sales_outstanding?.toFixed(1)} days
+                              </p>
+                            </div>
+                            {qualityData.earnings_quality.revenue_quality.dso_change !== null && (
+                              <div>
+                                <p className="text-sm text-gray-600 mb-1">DSO Change</p>
+                                <p className={`text-xl font-bold ${
+                                  qualityData.earnings_quality.revenue_quality.dso_change < 0
+                                    ? 'text-green-600'
+                                    : 'text-red-600'
+                                }`}>
+                                  {qualityData.earnings_quality.revenue_quality.dso_change >= 0 ? '+' : ''}
+                                  {qualityData.earnings_quality.revenue_quality.dso_change?.toFixed(1)} days
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Working Capital Quality */}
+                    {qualityData.earnings_quality && qualityData.earnings_quality.working_capital_quality && !qualityData.earnings_quality.working_capital_quality.error && (
+                      <div className="bg-white border border-gray-200 rounded-lg p-6">
+                        <h4 className="text-lg font-semibold text-gray-900 mb-4">Working Capital Quality</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div>
+                            <p className="text-sm text-gray-600 mb-1">Quality</p>
+                            <p className={`text-xl font-bold ${
+                              qualityData.earnings_quality.working_capital_quality.quality === 'High'
+                                ? 'text-green-600'
+                                : qualityData.earnings_quality.working_capital_quality.quality === 'Moderate'
+                                ? 'text-yellow-600'
+                                : 'text-red-600'
+                            }`}>
+                              {qualityData.earnings_quality.working_capital_quality.quality}
+                            </p>
+                          </div>
+                          {qualityData.earnings_quality.working_capital_quality.current_ratio !== null && (
+                            <div>
+                              <p className="text-sm text-gray-600 mb-1">Current Ratio</p>
+                              <p className="text-xl font-bold text-gray-900">
+                                {qualityData.earnings_quality.working_capital_quality.current_ratio?.toFixed(2)}
+                              </p>
+                            </div>
+                          )}
+                          {qualityData.earnings_quality.working_capital_quality.quick_ratio !== null && (
+                            <div>
+                              <p className="text-sm text-gray-600 mb-1">Quick Ratio</p>
+                              <p className="text-xl font-bold text-gray-900">
+                                {qualityData.earnings_quality.working_capital_quality.quick_ratio?.toFixed(2)}
+                              </p>
+                            </div>
+                          )}
+                          <div>
+                            <p className="text-sm text-gray-600 mb-1">Working Capital</p>
+                            <p className="text-xl font-bold text-gray-900">
+                              {formatCurrency(qualityData.earnings_quality.working_capital_quality.working_capital, currency)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Interpretation Guide */}
+                    <div className="bg-gray-50 border-l-4 border-gray-400 p-4">
+                      <h5 className="text-sm font-semibold text-gray-900 mb-2">Quality Analysis Guide</h5>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-gray-700">
+                        <div>
+                          <p className="font-semibold mb-1">Beneish M-Score:</p>
+                          <p>Score &gt; -2.22 suggests possible earnings manipulation. Lower is better.</p>
+                        </div>
+                        <div>
+                          <p className="font-semibold mb-1">Altman Z-Score:</p>
+                          <p>&gt;2.99 = Safe | 1.81-2.99 = Grey | &lt;1.81 = Distress. Higher is better.</p>
+                        </div>
+                        <div>
+                          <p className="font-semibold mb-1">CF/Income Ratio:</p>
+                          <p>&gt;1.0 = High quality (cash-backed earnings). Higher is better.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-gray-600 mb-4">No earnings quality analysis available yet.</p>
                     <button
                       onClick={handleRefreshData}
                       className="bg-primary-600 text-white px-6 py-2 rounded-md hover:bg-primary-700"
