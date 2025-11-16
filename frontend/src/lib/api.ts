@@ -439,6 +439,96 @@ class APIClient {
     const params = new URLSearchParams({ limit: limit.toString() });
     return this.request<any>(`/api/v1/analysis/${ticker}/cashflow-trend?${params}`);
   }
+
+  // Advanced Valuation endpoints
+  async runMonteCarloSimulation(data: {
+    base_revenue: number;
+    base_revenue_growth: number;
+    revenue_growth_volatility?: number;
+    base_ebitda_margin: number;
+    ebitda_margin_volatility?: number;
+    projection_years?: number;
+    base_wacc: number;
+    wacc_volatility?: number;
+    base_terminal_growth: number;
+    terminal_growth_volatility?: number;
+    capex_percent?: number;
+    nwc_change_percent?: number;
+    tax_rate?: number;
+    shares_outstanding: number;
+    num_simulations?: number;
+    distribution?: string;
+  }): Promise<any> {
+    return this.request<any>('/api/v1/advanced-valuations/monte-carlo', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async calculateGordonGrowth(data: {
+    current_dividend: number;
+    growth_rate: number;
+    required_return: number;
+  }): Promise<any> {
+    return this.request<any>('/api/v1/advanced-valuations/ddm/gordon-growth', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async calculateTwoStageDDM(data: {
+    current_dividend: number;
+    high_growth_rate: number;
+    high_growth_years: number;
+    stable_growth_rate: number;
+    required_return: number;
+  }): Promise<any> {
+    return this.request<any>('/api/v1/advanced-valuations/ddm/two-stage', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async calculateThreeStageDDM(data: {
+    current_dividend: number;
+    high_growth_rate: number;
+    high_growth_years: number;
+    transition_growth_rate: number;
+    transition_years: number;
+    stable_growth_rate: number;
+    required_return: number;
+  }): Promise<any> {
+    return this.request<any>('/api/v1/advanced-valuations/ddm/three-stage', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getEVAAnalysis(ticker: string, wacc: number, limit: number = 10): Promise<any> {
+    const params = new URLSearchParams({
+      wacc: wacc.toString(),
+      limit: limit.toString()
+    });
+    return this.request<any>(`/api/v1/advanced-valuations/${ticker}/eva?${params}`);
+  }
+
+  async runScenarioAnalysis(data: {
+    base_revenue: number;
+    revenue_growth_rates: number[];
+    ebitda_margin: number;
+    tax_rate: number;
+    capex_percent: number;
+    nwc_change_percent: number;
+    wacc: number;
+    terminal_growth_rate: number;
+    shares_outstanding: number;
+    net_debt?: number;
+  }): Promise<any> {
+    return this.request<any>('/api/v1/advanced-valuations/scenario-analysis', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
 }
 
 export const api = new APIClient();
