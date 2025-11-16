@@ -14,6 +14,9 @@ from app.models.user import User
 from app.models.portfolio import Portfolio, Transaction, TransactionType
 from app.models.company import Company
 from app.services.portfolio_analytics import PortfolioAnalytics
+from app.services.performance_tracking import PerformanceTrackingService
+from app.services.risk_metrics import RiskMetricsService
+from app.services.benchmark_comparison import BenchmarkComparisonService
 
 router = APIRouter()
 
@@ -501,4 +504,256 @@ def get_portfolio_analytics(
         'concentration': concentration,
         'top_performers': top_performers,
         'worst_performers': worst_performers
+    }
+
+
+@router.get("/portfolios/{portfolio_id}/performance")
+def get_portfolio_performance(
+    portfolio_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get portfolio performance tracking data
+
+    Returns time-series returns, cumulative returns, period returns
+    """
+    portfolio = db.query(Portfolio).filter(
+        Portfolio.id == portfolio_id,
+        Portfolio.user_id == current_user.id
+    ).first()
+
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+
+    # Get all transactions
+    transactions = (
+        db.query(Transaction)
+        .filter(Transaction.portfolio_id == portfolio_id)
+        .order_by(Transaction.transaction_date)
+        .all()
+    )
+
+    if not transactions:
+        return {
+            'portfolio_id': portfolio_id,
+            'performance': {
+                'daily_returns': [],
+                'cumulative_returns': [],
+                'period_returns': {},
+                'annualized_return': 0.0,
+                'total_return': 0.0,
+                'inception_date': None,
+                'latest_date': None,
+                'daily_values': []
+            }
+        }
+
+    # Convert transactions to dictionaries
+    txn_dicts = [
+        {
+            'ticker': t.ticker,
+            'transaction_type': t.transaction_type.value,
+            'transaction_date': t.transaction_date,
+            'quantity': t.quantity,
+            'price': t.price,
+            'commission': t.commission
+        }
+        for t in transactions
+    ]
+
+    # Get current prices (using latest transaction prices as proxy)
+    current_prices = {}
+    analytics = PortfolioAnalytics()
+    positions = analytics.calculate_position_summary(txn_dicts)
+
+    for ticker in positions.keys():
+        latest_txn = next((t for t in reversed(txn_dicts) if t['ticker'] == ticker), None)
+        current_prices[ticker] = latest_txn['price'] if latest_txn else 0.0
+
+    # Calculate performance
+    performance_service = PerformanceTrackingService()
+    performance = performance_service.calculate_time_series_returns(
+        txn_dicts,
+        current_prices
+    )
+
+    return {
+        'portfolio_id': portfolio_id,
+        'performance': performance
+    }
+
+
+@router.get("/portfolios/{portfolio_id}/risk-metrics")
+def get_portfolio_risk_metrics(
+    portfolio_id: str,
+    benchmark_symbol: Optional[str] = 'SPY',
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get portfolio risk metrics
+
+    Returns Sharpe, Sortino, Beta, Alpha, VaR, Max Drawdown, etc.
+    """
+    portfolio = db.query(Portfolio).filter(
+        Portfolio.id == portfolio_id,
+        Portfolio.user_id == current_user.id
+    ).first()
+
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+
+    # Get all transactions
+    transactions = (
+        db.query(Transaction)
+        .filter(Transaction.portfolio_id == portfolio_id)
+        .order_by(Transaction.transaction_date)
+        .all()
+    )
+
+    if not transactions:
+        risk_service = RiskMetricsService()
+        return {
+            'portfolio_id': portfolio_id,
+            'risk_metrics': risk_service._empty_risk_metrics()
+        }
+
+    # Convert transactions to dictionaries
+    txn_dicts = [
+        {
+            'ticker': t.ticker,
+            'transaction_type': t.transaction_type.value,
+            'transaction_date': t.transaction_date,
+            'quantity': t.quantity,
+            'price': t.price,
+            'commission': t.commission
+        }
+        for t in transactions
+    ]
+
+    # Get current prices
+    current_prices = {}
+    analytics = PortfolioAnalytics()
+    positions = analytics.calculate_position_summary(txn_dicts)
+
+    for ticker in positions.keys():
+        latest_txn = next((t for t in reversed(txn_dicts) if t['ticker'] == ticker), None)
+        current_prices[ticker] = latest_txn['price'] if latest_txn else 0.0
+
+    # Get performance data first
+    performance_service = PerformanceTrackingService()
+    performance = performance_service.calculate_time_series_returns(
+        txn_dicts,
+        current_prices
+    )
+
+    # Get benchmark data for Beta/Alpha calculation
+    benchmark_service = BenchmarkComparisonService()
+
+    # Get benchmark returns aligned with portfolio dates
+    benchmark_returns = None
+    if performance['daily_returns']:
+        start_date = datetime.fromisoformat(performance['inception_date'])
+        end_date = datetime.fromisoformat(performance['latest_date'])
+
+        benchmark_data = benchmark_service._get_benchmark_data(
+            benchmark_symbol,
+            start_date,
+            end_date
+        )
+
+        # Extract just the return values
+        benchmark_returns = [b['return'] for b in benchmark_data]
+
+    # Calculate risk metrics
+    risk_service = RiskMetricsService()
+    risk_metrics = risk_service.calculate_risk_metrics(
+        performance['daily_returns'],
+        performance['daily_values'],
+        benchmark_returns=benchmark_returns
+    )
+
+    return {
+        'portfolio_id': portfolio_id,
+        'benchmark_symbol': benchmark_symbol,
+        'risk_metrics': risk_metrics
+    }
+
+
+@router.get("/portfolios/{portfolio_id}/benchmark-comparison")
+def get_benchmark_comparison(
+    portfolio_id: str,
+    benchmark_symbol: str = 'SPY',
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Compare portfolio performance to a benchmark
+
+    Returns comparison metrics, aligned returns, cumulative performance
+    """
+    portfolio = db.query(Portfolio).filter(
+        Portfolio.id == portfolio_id,
+        Portfolio.user_id == current_user.id
+    ).first()
+
+    if not portfolio:
+        raise HTTPException(status_code=404, detail="Portfolio not found")
+
+    # Get all transactions
+    transactions = (
+        db.query(Transaction)
+        .filter(Transaction.portfolio_id == portfolio_id)
+        .order_by(Transaction.transaction_date)
+        .all()
+    )
+
+    if not transactions:
+        benchmark_service = BenchmarkComparisonService()
+        return {
+            'portfolio_id': portfolio_id,
+            'comparison': benchmark_service._empty_comparison()
+        }
+
+    # Convert transactions to dictionaries
+    txn_dicts = [
+        {
+            'ticker': t.ticker,
+            'transaction_type': t.transaction_type.value,
+            'transaction_date': t.transaction_date,
+            'quantity': t.quantity,
+            'price': t.price,
+            'commission': t.commission
+        }
+        for t in transactions
+    ]
+
+    # Get current prices
+    current_prices = {}
+    analytics = PortfolioAnalytics()
+    positions = analytics.calculate_position_summary(txn_dicts)
+
+    for ticker in positions.keys():
+        latest_txn = next((t for t in reversed(txn_dicts) if t['ticker'] == ticker), None)
+        current_prices[ticker] = latest_txn['price'] if latest_txn else 0.0
+
+    # Get performance data
+    performance_service = PerformanceTrackingService()
+    performance = performance_service.calculate_time_series_returns(
+        txn_dicts,
+        current_prices
+    )
+
+    # Compare to benchmark
+    benchmark_service = BenchmarkComparisonService()
+    comparison = benchmark_service.compare_to_benchmark(
+        performance['daily_returns'],
+        performance['daily_values'],
+        benchmark_symbol=benchmark_symbol
+    )
+
+    return {
+        'portfolio_id': portfolio_id,
+        'comparison': comparison
     }

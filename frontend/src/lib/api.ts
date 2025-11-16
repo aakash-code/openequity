@@ -636,6 +636,18 @@ class APIClient {
   async getPortfolioAnalytics(portfolioId: string): Promise<any> {
     return this.request<any>(`/api/v1/portfolios/portfolios/${portfolioId}/analytics`);
   }
+
+  async getPortfolioPerformance(portfolioId: string): Promise<any> {
+    return this.request<any>(`/api/v1/portfolios/portfolios/${portfolioId}/performance`);
+  }
+
+  async getPortfolioRiskMetrics(portfolioId: string, benchmarkSymbol: string = 'SPY'): Promise<any> {
+    return this.request<any>(`/api/v1/portfolios/portfolios/${portfolioId}/risk-metrics?benchmark_symbol=${benchmarkSymbol}`);
+  }
+
+  async getPortfolioBenchmarkComparison(portfolioId: string, benchmarkSymbol: string = 'SPY'): Promise<any> {
+    return this.request<any>(`/api/v1/portfolios/portfolios/${portfolioId}/benchmark-comparison?benchmark_symbol=${benchmarkSymbol}`);
+  }
 }
 
 export const api = new APIClient();
