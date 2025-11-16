@@ -3,7 +3,7 @@ API v1 router aggregating all endpoint routers
 """
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, companies, financials, valuations, analysis, advanced_valuations, earnings_quality, portfolios, watchlists, indian_market, ipo_primary_market, options_derivatives
+from app.api.v1.endpoints import auth, companies, financials, valuations, analysis, advanced_valuations, earnings_quality, portfolios, watchlists, indian_market, ipo_primary_market, options_derivatives, realtime_data
 
 api_router = APIRouter()
 
@@ -21,3 +21,4 @@ api_router.include_router(watchlists.router, prefix="/screening", tags=["screeni
 api_router.include_router(indian_market.router, prefix="", tags=["indian-market", "sebi", "currency"])
 api_router.include_router(ipo_primary_market.router, prefix="/primary-market", tags=["ipo", "rights-issues", "ofs", "buybacks"])
 api_router.include_router(options_derivatives.router, prefix="/derivatives", tags=["options", "futures", "fno"])
+api_router.include_router(realtime_data.router, prefix="/realtime", tags=["realtime", "broker-data", "openalgo"])
