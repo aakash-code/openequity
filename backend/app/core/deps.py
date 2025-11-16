@@ -111,3 +111,35 @@ def get_current_admin_user(
             detail="Not enough permissions"
         )
     return current_user
+
+
+async def get_current_user_ws(
+    token: str,
+    db: Session = Depends(get_db)
+) -> Optional[User]:
+    """
+    Get current user from WebSocket token (query parameter)
+
+    Args:
+        token: JWT token from query parameter
+        db: Database session
+
+    Returns:
+        User if authenticated, None otherwise
+    """
+    try:
+        payload = decode_access_token(token)
+        if payload is None:
+            return None
+
+        email: str = payload.get("sub")
+        if email is None:
+            return None
+
+        user = db.query(User).filter(User.email == email).first()
+        if user is None or not user.is_active:
+            return None
+
+        return user
+    except Exception:
+        return None

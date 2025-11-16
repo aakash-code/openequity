@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '@/lib/api';
 import { Line, Bar, ComposedChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { useTickerStream } from '@/hooks/useMarketData';
+import WebSocketStatus from '@/components/WebSocketStatus';
 
 export default function TechnicalAnalysisPage() {
   const [ticker, setTicker] = useState('RELIANCE');
@@ -10,6 +12,7 @@ export default function TechnicalAnalysisPage() {
   const [interval, setInterval] = useState('1d');
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'indicators' | 'patterns' | 'levels'>('overview');
+  const [enableLiveData, setEnableLiveData] = useState(true);
 
   const [analysisData, setAnalysisData] = useState<any>(null);
   const [selectedIndicators, setSelectedIndicators] = useState({
@@ -19,6 +22,9 @@ export default function TechnicalAnalysisPage() {
     rsi: true,
     macd: true
   });
+
+  // WebSocket for live ticker data
+  const { ticker: liveTickerData, priceHistory, isConnected } = useTickerStream(ticker, exchange, enableLiveData);
 
   useEffect(() => {
     if (ticker) {
@@ -71,10 +77,56 @@ export default function TechnicalAnalysisPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Technical Analysis</h1>
-          <p className="mt-2 text-gray-600">Advanced charting with 20+ indicators and pattern recognition</p>
+        <div className="mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Technical Analysis</h1>
+              <p className="mt-2 text-gray-600">Advanced charting with 20+ indicators and pattern recognition</p>
+            </div>
+            <WebSocketStatus isConnected={isConnected} size="md" />
+          </div>
         </div>
+
+        {/* Live Ticker Banner */}
+        {liveTickerData && enableLiveData && (
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow-lg p-6 mb-6 text-white">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <div className="md:col-span-2">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-2xl font-bold">{ticker}</h2>
+                  <span className="text-sm opacity-80">{exchange}</span>
+                  <div className="flex items-center gap-1 ml-2">
+                    <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                    <span className="text-xs">LIVE</span>
+                  </div>
+                </div>
+                <p className="text-3xl font-bold mt-2">₹{liveTickerData.ltp.toLocaleString('en-IN', {minimumFractionDigits: 2})}</p>
+              </div>
+              <div>
+                <p className="text-sm opacity-80">Change</p>
+                <p className={`text-xl font-semibold ${liveTickerData.change >= 0 ? 'text-green-300' : 'text-red-300'}`}>
+                  {liveTickerData.change >= 0 ? '+' : ''}{liveTickerData.change.toFixed(2)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm opacity-80">Change %</p>
+                <p className={`text-xl font-semibold ${liveTickerData.change_percent >= 0 ? 'text-green-300' : 'text-red-300'}`}>
+                  {liveTickerData.change_percent >= 0 ? '+' : ''}{liveTickerData.change_percent.toFixed(2)}%
+                </p>
+              </div>
+              <div>
+                <p className="text-sm opacity-80">Last Update</p>
+                <p className="text-sm font-medium">{new Date(liveTickerData.timestamp).toLocaleTimeString()}</p>
+                <button
+                  onClick={() => setEnableLiveData(!enableLiveData)}
+                  className="mt-2 text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded transition"
+                >
+                  {enableLiveData ? 'Pause Live' : 'Resume Live'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Controls */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
