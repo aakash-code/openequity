@@ -72,6 +72,12 @@ export default function Navbar() {
                 >
                   Options
                 </Link>
+                <Link
+                  href="/technical-analysis"
+                  className="text-gray-700 hover:text-primary-600 px-3 py-2 text-sm font-medium transition"
+                >
+                  Charts
+                </Link>
               </div>
             )}
           </div>

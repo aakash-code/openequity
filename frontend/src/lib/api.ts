@@ -1022,6 +1022,142 @@ class APIClient {
       method: 'DELETE',
     });
   }
+
+  // Technical Analysis endpoints
+  async getTechnicalIndicators(
+    ticker: string,
+    exchange: string = 'NSE',
+    interval: string = '1d',
+    indicators?: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<any> {
+    const params = new URLSearchParams({
+      exchange,
+      interval
+    });
+    if (indicators) params.append('indicators', indicators);
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+
+    return this.request<any>(`/api/v1/technical/indicators/${ticker}?${params}`);
+  }
+
+  async getChartPatterns(
+    ticker: string,
+    exchange: string = 'NSE',
+    interval: string = '1d',
+    startDate?: string,
+    endDate?: string
+  ): Promise<any> {
+    const params = new URLSearchParams({ exchange, interval });
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+
+    return this.request<any>(`/api/v1/technical/patterns/chart/${ticker}?${params}`);
+  }
+
+  async getCandlestickPatterns(
+    ticker: string,
+    exchange: string = 'NSE',
+    interval: string = '1d',
+    lookback: number = 20,
+    startDate?: string,
+    endDate?: string
+  ): Promise<any> {
+    const params = new URLSearchParams({
+      exchange,
+      interval,
+      lookback: lookback.toString()
+    });
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+
+    return this.request<any>(`/api/v1/technical/patterns/candlestick/${ticker}?${params}`);
+  }
+
+  async getSupportResistance(
+    ticker: string,
+    exchange: string = 'NSE',
+    interval: string = '1d',
+    includeRoundNumbers: boolean = true,
+    includeFibonacci: boolean = true,
+    includePivots: boolean = true,
+    startDate?: string,
+    endDate?: string
+  ): Promise<any> {
+    const params = new URLSearchParams({
+      exchange,
+      interval,
+      include_round_numbers: includeRoundNumbers.toString(),
+      include_fibonacci: includeFibonacci.toString(),
+      include_pivots: includePivots.toString()
+    });
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+
+    return this.request<any>(`/api/v1/technical/support-resistance/${ticker}?${params}`);
+  }
+
+  async getComprehensiveTechnicalAnalysis(
+    ticker: string,
+    exchange: string = 'NSE',
+    interval: string = '1d',
+    startDate?: string,
+    endDate?: string
+  ): Promise<any> {
+    const params = new URLSearchParams({ exchange, interval });
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+
+    return this.request<any>(`/api/v1/technical/analyze/${ticker}?${params}`);
+  }
+
+  async calculateSMA(
+    ticker: string,
+    period: number = 20,
+    exchange: string = 'NSE',
+    interval: string = '1d'
+  ): Promise<any> {
+    const params = new URLSearchParams({
+      period: period.toString(),
+      exchange,
+      interval
+    });
+    return this.request<any>(`/api/v1/technical/indicator/sma/${ticker}?${params}`);
+  }
+
+  async calculateRSI(
+    ticker: string,
+    period: number = 14,
+    exchange: string = 'NSE',
+    interval: string = '1d'
+  ): Promise<any> {
+    const params = new URLSearchParams({
+      period: period.toString(),
+      exchange,
+      interval
+    });
+    return this.request<any>(`/api/v1/technical/indicator/rsi/${ticker}?${params}`);
+  }
+
+  async calculateMACD(
+    ticker: string,
+    fastPeriod: number = 12,
+    slowPeriod: number = 26,
+    signalPeriod: number = 9,
+    exchange: string = 'NSE',
+    interval: string = '1d'
+  ): Promise<any> {
+    const params = new URLSearchParams({
+      fast_period: fastPeriod.toString(),
+      slow_period: slowPeriod.toString(),
+      signal_period: signalPeriod.toString(),
+      exchange,
+      interval
+    });
+    return this.request<any>(`/api/v1/technical/indicator/macd/${ticker}?${params}`);
+  }
 }
 
 export const api = new APIClient();
